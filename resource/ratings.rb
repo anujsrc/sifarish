@@ -1,6 +1,6 @@
 #!/usr/bin/ruby
 
-require '../lib/util.rb'      
+require './util.rb'      
 
 itemCount = ARGV[0].to_i
 userCount = ARGV[1].to_i
@@ -44,7 +44,7 @@ for c in 0..9
 		unanimous = rand(10) < 2
 		popular = rand(10) < 5
 		#puts "unanimous: #{unanimous}  popular: #{popular}"
-		1.upto numRating do
+        1.upto numRating do
 			if (rand(10) == 1)
 				uc = c < 5 ? c + rand(10 -c) : rand(c)
 				otherUsers = userCluster[uc]
