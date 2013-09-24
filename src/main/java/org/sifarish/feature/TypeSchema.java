@@ -18,6 +18,8 @@
 
 package org.sifarish.feature;
 
+import org.apache.hadoop.conf.Configuration;
+
 /**
  * Base schema class
  * @author pranab
@@ -33,7 +35,8 @@ public class TypeSchema {
 	private double trgNonMatchingTermWeight = 1.0;
 	private double[] locationComponentWeights;
 	private double[] eventComponentWeights;
-
+	private Configuration conf;
+	
 	public String getDistAlgorithm() {
 		return distAlgorithm;
 	}
@@ -101,6 +104,10 @@ public class TypeSchema {
 		this.eventComponentWeights = eventComponentWeights;
 	}
 
+	public void setConf(Configuration conf) {
+		this.conf = conf;
+	}
+
 	/**
 	 * Entity distance strategy
 	 * @param scale
@@ -132,6 +139,9 @@ public class TypeSchema {
 				textSimStrategy = new JaccardSimilarity(srcNonMatchingTermWeight, trgNonMatchingTermWeight);
 			} else if (textMatchingAlgorithm.equals("cosine")){
 				textSimStrategy = new CosineSimilarity();
+			} else if (textMatchingAlgorithm.equals("editDistance")){
+				boolean tokenWise = conf.getBoolean("edit.dist.token", true);
+				textSimStrategy = new EditDistanceSimilarity(tokenWise);
 			}
 		}
 		return textSimStrategy;

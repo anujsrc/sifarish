@@ -167,6 +167,7 @@ public class SameTypeSimilarity  extends Configured implements Tool {
        				keyHolder.set(partition, hashPair,1);
        				valueHolder.set("1" + value.toString());
     			} 
+    			LOG.debug("hashPair:" + hashPair);
    	   			context.write(keyHolder, valueHolder);
     		}
         }
@@ -199,7 +200,9 @@ public class SameTypeSimilarity  extends Configured implements Tool {
         private String[] secondItems;
         private int  distThreshold;
         private boolean  outputIdFirst ;
-        private static final Logger LOG = Logger.getLogger(SimilarityMapper.class);
+        private boolean interSetMatching;
+        private int setIdSize;
+        private static final Logger LOG = Logger.getLogger(SimilarityReducer.class);
         
         
     	/* (non-Javadoc)
@@ -207,6 +210,8 @@ public class SameTypeSimilarity  extends Configured implements Tool {
     	 */
     	protected void setup(Context context) throws IOException, InterruptedException {
 			Configuration conf = context.getConfiguration();
+			
+			//schema
             String filePath = conf.get("same.schema.file.path");
             FileSystem dfs = FileSystem.get(conf);
             Path src = new Path(filePath);
@@ -214,6 +219,7 @@ public class SameTypeSimilarity  extends Configured implements Tool {
             ObjectMapper mapper = new ObjectMapper();
             schema = mapper.readValue(fs, SingleTypeSchema.class);
             schema.processStructuredFields();
+            schema.setConf(conf);
         	
             idOrdinal = schema.getEntity().getIdField().getOrdinal();
         	fieldDelimRegex = conf.get("field.delim.regex", "\\[\\]");
@@ -246,6 +252,10 @@ public class SameTypeSimilarity  extends Configured implements Tool {
         	//output ID first
         	 outputIdFirst =   conf.getBoolean("output.id.first", true);      	
 
+        	 //inter set matching
+        	 interSetMatching = conf.getBoolean("inter.set.matching",  false);
+        	 setIdSize = conf.getInt("set.ID.size",  0);
+        	 
              if (conf.getBoolean("debug.on", false)) {
              	LOG.setLevel(Level.DEBUG);
              }
@@ -258,6 +268,7 @@ public class SameTypeSimilarity  extends Configured implements Tool {
         throws IOException, InterruptedException {
         	valueList.clear();
         	int secondPart = key.getSecond().get();
+        	LOG.debug("key hash pair:" + secondPart);
         	if (secondPart/1000 == secondPart%1000){
         		//same hash bucket
 	        	for (Text value : values){
@@ -294,6 +305,7 @@ public class SameTypeSimilarity  extends Configured implements Tool {
 	            		secondId =  second.split(fieldDelimRegex)[idOrdinal];
 	            		for (String first : valueList){
 	                		firstId =  first.split(fieldDelimRegex)[idOrdinal];
+	                		LOG.debug("ID pair:" + firstId + "  " +  secondId);
 		        			dist  = findDistance( first,  second,  context);
 		        			if (dist <= distThreshold) {
 		        				valueHolder.set(createValueField());
@@ -314,7 +326,20 @@ public class SameTypeSimilarity  extends Configured implements Tool {
          * @throws IOException 
          */
         private int findDistance(String first, String second, Context context) throws IOException {
+        	LOG.debug("findDistance:" + first + "  " + second);
         	int netDist = 0;
+
+       		//if inter set matching, match only same ID from different sets
+        	if (interSetMatching) {
+        		String firstEntityId = firstId.substring(setIdSize);
+        		String secondEntityId = secondId.substring(setIdSize);
+        		if (!firstEntityId.equals(secondEntityId)) {
+        			netDist =  distThreshold + 1;
+					context.getCounter("Distance Data", "Diff ID from separate sets").increment(1);
+        			return netDist;
+        		}
+        	}
+        	
     		firstItems = first.split(fieldDelimRegex);
     		secondItems = second.split(fieldDelimRegex);
     		double dist = 0;
@@ -322,6 +347,7 @@ public class SameTypeSimilarity  extends Configured implements Tool {
     		distStrategy.initialize();
     		List<Integer> activeFields = null;
     		
+    		boolean thresholdCrossed = false;
     		for (Field field :  schema.getEntity().getFields()) {
     			if (null != facetedFields) {
     				//if facetted set but field not included, then skip it
@@ -352,7 +378,7 @@ public class SameTypeSimilarity  extends Configured implements Tool {
     				secondAttr = secondItems[field.getOrdinal()];
     			}else {
     				throw new IOException("Invalid field ordinal. Looking for field " + field.getOrdinal() + 
-    						" found "  + firstItems.length + " fields in the record:" + second);
+    						" found "  + secondItems.length + " fields in the record:" + second);
     			}
     			String unit = field.getUnit();
     			
@@ -388,6 +414,15 @@ public class SameTypeSimilarity  extends Configured implements Tool {
 	    				dist = eventDistance(field, firstAttr,  secondAttr, context);
 	    			}
     			}
+    			
+    			//if threshold crossed for this attribute, skip the remaining attributes of the entity pair
+    			thresholdCrossed = field.isDistanceThresholdCrossed(dist);
+    			if (thresholdCrossed){
+					context.getCounter("Distance Data", "Attribute distance threshold filter").increment(1);
+    				break;
+    			}
+    			
+    			//aggregate attribute  distance for all entity attributes
 				distStrategy.accumulate(dist, field.getWeight());
     		}  
     		
@@ -396,7 +431,7 @@ public class SameTypeSimilarity  extends Configured implements Tool {
 				intializePassiveFieldOrdinal(activeFields, firstItems.length);
 			}
 			
-    		netDist = distStrategy.getSimilarity();
+    		netDist = thresholdCrossed?  distThreshold + 1  : distStrategy.getSimilarity();
     		return netDist;
         }
         
