@@ -101,8 +101,6 @@
   			<artifactId>jena-arq</artifactId>
   			<version>2.9.4</version>
 		</dependency>    
-		 
-    </dependencies>
 
 		<!-- <dependency> -->
 		<!-- <groupId>org.testng</groupId> -->
@@ -118,38 +116,10 @@
 			<version>3.1</version>
 		</dependency>		 
 		
-    </dependencies>
-
 		<dependency>
 			<groupId>org.codehaus.jackson</groupId>
 			<artifactId>jackson-mapper-asl </artifactId>
 			<version>${jackson.version}</version>
-		</dependency>
-
-		<dependency>
-			<artifactId>lucene-core</artifactId>
-			<groupId>org.apache.lucene</groupId>
-			<version>3.5.0</version>
-			<type>jar</type>
-			<scope>compile</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>mawazo</groupId>
-			<artifactId>chombo</artifactId>
-			<version>1.0</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.jena</groupId>
-			<artifactId>jena-arq</artifactId>
-			<version>2.9.4</version>
-			<exclusions>
-				<exclusion>
-					<artifactId>jcl-over-slf4j</artifactId>
-					<groupId>org.slf4j</groupId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 
 	</dependencies>
