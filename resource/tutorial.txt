@@ -25,10 +25,6 @@ Dependency Jars
 ===============
 Please refer to resource/jar_dpendency.txt
 
-Once you have the jars, there are two options. First you can can combine them all
-into one fat jar. There are many ways to do it, as you can find from google search.
-The second option is to use the libjars option in the hadoop command line.
-
 Implicit Rating Predictor (optiuonal)
 =========================
 This one is optional. You want to run this MR if you want to generate rating data
